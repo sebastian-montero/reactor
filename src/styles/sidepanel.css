@@ -1,0 +1,408 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    color: #e8eaed;
+    background: rgb(32, 33, 36);
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+}
+
+.header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.header-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.section {
+    margin-bottom: 16px;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.section:last-child {
+    flex: 1;
+    min-height: 200px;
+}
+
+.unified-list {
+    flex: 1;
+    background: rgb(32, 33, 36);
+    border-radius: 8px;
+    overflow-y: auto;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #fafbfc;
+    border-bottom: 1px solid #e8eaed;
+    flex-shrink: 0;
+}
+
+.section-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.count {
+    background: #e8f0fe;
+    color: #1967d2;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.btn {
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    background: transparent;
+}
+
+.btn:hover {
+    background: #f1f3f4;
+}
+
+.btn-icon {
+    padding: 6px;
+    border-radius: 50%;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    background: #f8f9fa;
+    color: #5f6368;
+}
+
+.btn-sm:hover {
+    background: #e8eaed;
+}
+
+.tabs-container,
+.bookmarks-container {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+/* Tab and bookmark items */
+.tab-item,
+.bookmark-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    position: relative;
+    /* for pinned indicator */
+    border-bottom: none;
+    transition: background-color 0.1s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.tab-item:hover,
+.bookmark-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.tab-item:last-child,
+.bookmark-item:last-child {
+    border-bottom: none;
+}
+
+.active-tab {
+    background: #f2f2f2 !important;
+    border-left: none !important;
+}
+
+.active-tab .tab-title,
+.active-tab .bookmark-title {
+    color: #333;
+    font-weight: 600;
+}
+
+.tab-favicon,
+.bookmark-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.tab-favicon {
+    background: #e8eaed;
+}
+
+.bookmark-icon {
+    /* Make emoji container auto-size and transparent to avoid blue background */
+    background-color: transparent !important;
+    width: auto !important;
+    height: auto !important;
+    border-radius: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    font-size: 14px;
+}
+
+.tab-info,
+.bookmark-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.tab-title,
+.bookmark-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+    line-height: 1.2;
+}
+
+.tab-actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+}
+
+.tab-item:hover .tab-actions {
+    opacity: 1;
+}
+
+.action-btn {
+    padding: 3px;
+    border: none;
+    background: transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    color: #9aa0a6;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+/* Pin action button uses red pin color */
+.action-btn.pin-tab {
+    color: #ea4335;
+}
+
+.action-btn.pin-tab:hover {
+    color: #d93025;
+}
+
+.pinned-indicator {
+    position: absolute;
+    right: 28px;
+    left: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #ea4335;
+    font-size: 12px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.pinned-indicator:hover {
+    opacity: 0.7;
+}
+
+/* Bookmark folder container */
+.bookmark-folder {
+    margin: 4px 0;
+}
+
+.bookmark-folder .bookmark-icon {
+    background: transparent;
+    color: #4285f4;
+}
+
+/* Bookmark folder header */
+.bookmark-folder-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 6px 12px;
+    border-radius: 4px;
+    margin-bottom: 2px;
+}
+
+.bookmark-folder-toggle {
+    margin-right: 8px;
+    font-size: 10px;
+    transition: transform 0.2s ease;
+    color: #5f6368;
+}
+
+.bookmark-folder.collapsed .bookmark-folder-toggle {
+    transform: rotate(-90deg);
+}
+
+/* Bookmark children list */
+.bookmark-children {
+    margin-left: 16px;
+    background: transparent;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.bookmark-folder.collapsed .bookmark-children {
+    max-height: 0;
+    overflow: hidden;
+}
+
+.bookmark-child {
+    padding: 8px 12px;
+}
+
+.empty-state,
+.loading {
+    padding: 24px 12px;
+    text-align: center;
+    color: #9aa0a6;
+    font-size: 12px;
+}
+
+.loading {
+    font-style: italic;
+}
+
+.collapsed .bookmarks-container {
+    display: none;
+}
+
+.window-group {
+    margin-bottom: 0;
+}
+
+.window-header {
+    padding: 6px 12px;
+    background: #f1f3f4;
+    font-size: 11px;
+    font-weight: 600;
+    color: #5f6368;
+    border-bottom: 1px solid #e8eaed;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Side panel specific optimizations */
+@media (max-width: 400px) {
+    .container {
+        padding: 8px;
+    }
+
+    .header h1 {
+        font-size: 14px;
+    }
+
+    .section-header h2 {
+        font-size: 13px;
+    }
+
+    .tab-title,
+    .bookmark-title {
+        font-size: 11px;
+    }
+
+    .tab-url,
+    .bookmark-url {
+        font-size: 9px;
+    }
+}
+
+/* Improved focus styles for keyboard navigation */
+.tab-item:focus,
+.bookmark-item:focus,
+.btn:focus {
+    outline: none;
+    background-color: #f2f2f2;
+}
+
+/* Darken title on focus for contrast */
+.tab-item:focus .tab-title,
+.bookmark-item:focus .bookmark-title {
+    color: #333;
+    font-weight: 600;
+}
+
+/* Better hover states for touch devices */
+@media (hover: none) {
+    .tab-actions {
+        opacity: 1;
+    }
+}
