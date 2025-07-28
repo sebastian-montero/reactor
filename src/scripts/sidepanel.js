@@ -128,13 +128,23 @@ class SidePanelTabManager {
 
         // Show content immediately, even if empty
         // Clear existing content
+        const pinnedContainer = document.getElementById('pinnedTabs');
+        pinnedContainer.textContent = '';
         container.textContent = '';
         const fragment = document.createDocumentFragment();
 
         // Add pinned tabs first
-        // Add pinned tabs first
+        // Render pinned tabs as icons in the pinned-tabs strip
+        const defaultFavicon = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="%23e8eaed"/></svg>';
         this.pinnedTabs.forEach(tab => {
-            fragment.appendChild(this.createTabElementNode(tab, true));
+            const img = document.createElement('img');
+            img.className = 'pinned-tab-icon';
+            img.src = tab.favIconUrl || defaultFavicon;
+            img.alt = '';
+            img.title = tab.title || 'Untitled';
+            img.dataset.tabId = tab.id;
+            img.tabIndex = 0;
+            pinnedContainer.appendChild(img);
         });
 
         // Add open tabs
@@ -277,6 +287,14 @@ class SidePanelTabManager {
     }
 
     attachEvents(container) {
+        // Handle clicks on pinned tab icons
+        const pinnedContainer = document.getElementById('pinnedTabs');
+        pinnedContainer.onclick = async (e) => {
+            if (e.target.classList.contains('pinned-tab-icon')) {
+                const tabId = parseInt(e.target.dataset.tabId);
+                await this.switchToTab(tabId);
+            }
+        };
         // Use direct handler assignment to avoid accumulating multiple listeners
         container.onclick = async (e) => {
             // Handle tab events

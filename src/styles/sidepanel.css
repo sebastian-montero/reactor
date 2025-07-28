@@ -406,3 +406,32 @@ body {
         opacity: 1;
     }
 }
+
+/* Pinned tabs strip */
+.pinned-tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-bottom: 1px solid #444;
+    background: rgb(32, 33, 36);
+    overflow-x: auto;
+    flex-shrink: 0;
+}
+
+.pinned-tab-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    cursor: pointer;
+    border-radius: 2px;
+}
+
+/* Prevent highlighting the pinned strip and icons */
+.pinned-tabs,
+.pinned-tab-icon {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
