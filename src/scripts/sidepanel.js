@@ -462,7 +462,7 @@ class SidePanelTabManager {
 
         // Drag start event
         const handleDragStart = (e) => {
-            // Prevent dragging on action buttons
+            // Prevent dragging on action buttons and folder toggle
             if (e.target.classList.contains('action-btn') ||
                 e.target.classList.contains('close-tab') ||
                 e.target.classList.contains('pin-tab') ||
@@ -471,37 +471,63 @@ class SidePanelTabManager {
                 return;
             }
 
-            this.draggedElement = e.target;
-            e.target.classList.add('dragging');
+            // Find the actual draggable element
+            let dragElement = e.target;
 
-            if (e.target.classList.contains('pinned-tab-icon')) {
+            // If we're clicking on a bookmark folder header, use the parent folder
+            if (e.target.classList.contains('bookmark-folder-header') ||
+                e.target.closest('.bookmark-folder-header')) {
+                dragElement = e.target.closest('.bookmark-folder');
+            }
+            // If we're clicking inside a bookmark child, use the child element
+            else if (e.target.closest('.bookmark-child')) {
+                dragElement = e.target.closest('.bookmark-child');
+            }
+            // If we're clicking on a tab item, use the tab item
+            else if (e.target.closest('.tab-item')) {
+                dragElement = e.target.closest('.tab-item');
+            }
+            // If we're clicking on a pinned tab icon, use that
+            else if (e.target.classList.contains('pinned-tab-icon')) {
+                dragElement = e.target;
+            }
+
+            if (!dragElement || !dragElement.draggable) {
+                e.preventDefault();
+                return;
+            }
+
+            this.draggedElement = dragElement;
+            dragElement.classList.add('dragging');
+
+            if (dragElement.classList.contains('pinned-tab-icon')) {
                 this.draggedData = {
                     type: 'pinnedTab',
-                    tabId: parseInt(e.target.dataset.tabId),
-                    element: e.target
+                    tabId: parseInt(dragElement.dataset.tabId),
+                    element: dragElement
                 };
-            } else if (e.target.classList.contains('tab-item')) {
+            } else if (dragElement.classList.contains('tab-item')) {
                 this.draggedData = {
                     type: 'tab',
-                    tabId: parseInt(e.target.dataset.tabId),
-                    element: e.target
+                    tabId: parseInt(dragElement.dataset.tabId),
+                    element: dragElement
                 };
-            } else if (e.target.classList.contains('bookmark-folder')) {
+            } else if (dragElement.classList.contains('bookmark-folder')) {
                 this.draggedData = {
                     type: 'bookmarkFolder',
-                    bookmarkId: e.target.dataset.bookmarkId,
-                    element: e.target
+                    bookmarkId: dragElement.dataset.bookmarkId,
+                    element: dragElement
                 };
-            } else if (e.target.classList.contains('bookmark-child')) {
+            } else if (dragElement.classList.contains('bookmark-child')) {
                 this.draggedData = {
                     type: 'bookmark',
-                    bookmarkId: e.target.dataset.bookmarkId,
-                    element: e.target
+                    bookmarkId: dragElement.dataset.bookmarkId,
+                    element: dragElement
                 };
             }
 
             e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', e.target.outerHTML);
+            e.dataTransfer.setData('text/html', dragElement.outerHTML);
         };
 
         // Drag over event
@@ -509,7 +535,14 @@ class SidePanelTabManager {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
 
-            const target = e.target.closest('.tab-item, .bookmark-item, .bookmark-folder, .pinned-tab-icon');
+            // Find the target element for drop
+            let target = e.target.closest('.tab-item, .bookmark-child, .bookmark-folder, .pinned-tab-icon');
+
+            // If we're hovering over a bookmark folder header, use the parent folder
+            if (!target && e.target.closest('.bookmark-folder-header')) {
+                target = e.target.closest('.bookmark-folder');
+            }
+
             if (target && target !== this.draggedElement && this.draggedData) {
                 this.clearDropIndicators();
 
@@ -531,7 +564,13 @@ class SidePanelTabManager {
 
         // Drag leave event
         const handleDragLeave = (e) => {
-            const target = e.target.closest('.tab-item, .bookmark-item, .bookmark-folder, .pinned-tab-icon');
+            let target = e.target.closest('.tab-item, .bookmark-child, .bookmark-folder, .pinned-tab-icon');
+
+            // If we're leaving a bookmark folder header, use the parent folder
+            if (!target && e.target.closest('.bookmark-folder-header')) {
+                target = e.target.closest('.bookmark-folder');
+            }
+
             if (target) {
                 target.classList.remove('drag-over', 'drag-over-bottom');
             }
@@ -542,7 +581,14 @@ class SidePanelTabManager {
             e.preventDefault();
             this.clearDropIndicators();
 
-            const target = e.target.closest('.tab-item, .bookmark-item, .bookmark-folder, .pinned-tab-icon');
+            // Find the target element for drop
+            let target = e.target.closest('.tab-item, .bookmark-child, .bookmark-folder, .pinned-tab-icon');
+
+            // If we're dropping on a bookmark folder header, use the parent folder
+            if (!target && e.target.closest('.bookmark-folder-header')) {
+                target = e.target.closest('.bookmark-folder');
+            }
+
             if (target && target !== this.draggedElement && this.draggedData) {
                 const isCompatible = this.isDropCompatible(this.draggedData.type, target);
                 if (isCompatible) {
@@ -583,7 +629,7 @@ class SidePanelTabManager {
             return true;
         }
         if ((draggedType === 'bookmark' || draggedType === 'bookmarkFolder') &&
-            (targetElement.classList.contains('bookmark-item') || targetElement.classList.contains('bookmark-folder'))) {
+            (targetElement.classList.contains('bookmark-child') || targetElement.classList.contains('bookmark-folder'))) {
             return true;
         }
         return false;
@@ -598,7 +644,7 @@ class SidePanelTabManager {
         } else if (draggedData.type === 'tab' && targetElement.classList.contains('tab-item')) {
             await this.reorderTabs(draggedData.tabId, parseInt(targetElement.dataset.tabId), dropBelow);
         } else if ((draggedData.type === 'bookmark' || draggedData.type === 'bookmarkFolder') &&
-            (targetElement.classList.contains('bookmark-item') || targetElement.classList.contains('bookmark-folder'))) {
+            (targetElement.classList.contains('bookmark-child') || targetElement.classList.contains('bookmark-folder'))) {
             await this.reorderBookmarks(draggedData.bookmarkId, targetElement.dataset.bookmarkId, dropBelow);
         }
     }
