@@ -127,43 +127,44 @@ body {
     min-height: 0;
 }
 
-/* Tab and bookmark items */
+/* ===== TAB AND BOOKMARK ITEM STYLES ===== */
+
+/* Base item styling */
 .tab-item,
 .bookmark-item {
     display: flex;
     align-items: center;
     padding: 6px 8px;
     position: relative;
-    /* for pinned indicator */
     border-bottom: none;
-    transition: background-color 0.1s ease;
+    transition: background-color 0.2s ease;
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    border-radius: 4px;
+    margin: 1px 0;
 }
 
 .tab-item:hover,
 .bookmark-item:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
 }
 
-.tab-item:last-child,
-.bookmark-item:last-child {
-    border-bottom: none;
-}
-
+/* Active state */
 .active-tab {
-    background: #f2f2f2 !important;
-    border-left: none !important;
+    background: rgba(66, 133, 244, 0.1) !important;
+    border-left: 3px solid #4285f4 !important;
+    border-radius: 0 4px 4px 0 !important;
 }
 
 .active-tab .tab-title,
 .active-tab .bookmark-title {
-    color: #333;
+    color: #4285f4;
     font-weight: 600;
 }
 
+/* Icons */
 .tab-favicon,
 .bookmark-icon {
     width: 14px;
@@ -178,7 +179,6 @@ body {
 }
 
 .bookmark-icon {
-    /* Make emoji container auto-size and transparent to avoid blue background */
     background-color: transparent !important;
     width: auto !important;
     height: auto !important;
@@ -190,6 +190,7 @@ body {
     font-size: 14px;
 }
 
+/* Text content */
 .tab-info,
 .bookmark-info {
     flex: 1;
@@ -200,7 +201,7 @@ body {
 .bookmark-title {
     font-size: 12px;
     font-weight: 500;
-    color: #ffffff;
+    color: #e8eaed;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -208,6 +209,9 @@ body {
     line-height: 1.2;
 }
 
+/* ===== TAB ACTIONS AND PINNED INDICATORS ===== */
+
+/* Tab action buttons container */
 .tab-actions {
     display: flex;
     gap: 2px;
@@ -220,6 +224,7 @@ body {
     opacity: 1;
 }
 
+/* Action buttons */
 .action-btn {
     padding: 3px;
     border: none;
@@ -233,33 +238,40 @@ body {
 
 .action-btn:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: #ffffff;
+    color: #e8eaed;
 }
 
-/* Pin action button uses red pin color */
+/* Pin action button */
 .action-btn.pin-tab {
     color: #ea4335;
 }
 
 .action-btn.pin-tab:hover {
     color: #d93025;
+    background: rgba(234, 67, 53, 0.1);
 }
 
+/* Pinned indicator */
 .pinned-indicator {
     position: absolute;
     right: 28px;
-    left: auto;
     top: 50%;
     transform: translateY(-50%);
     color: #ea4335;
-    font-size: 12px;
+    font-size: 11px;
     cursor: pointer;
     transition: opacity 0.2s ease;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 4px;
+    border-radius: 3px;
 }
 
 .pinned-indicator:hover {
-    opacity: 0.7;
+    opacity: 0.8;
+    background: rgba(234, 67, 53, 0.15);
 }
+
+/* ===== BOOKMARK FOLDER STYLES ===== */
 
 /* Bookmark folder container */
 .bookmark-folder {
@@ -280,20 +292,27 @@ body {
     padding: 6px 12px;
     border-radius: 4px;
     margin-bottom: 2px;
+    transition: background-color 0.2s ease;
 }
 
+.bookmark-folder-header:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Folder toggle arrow */
 .bookmark-folder-toggle {
     margin-right: 8px;
     font-size: 10px;
     transition: transform 0.2s ease;
-    color: #5f6368;
+    color: #9aa0a6;
+    font-weight: bold;
 }
 
 .bookmark-folder.collapsed .bookmark-folder-toggle {
     transform: rotate(-90deg);
 }
 
-/* Bookmark children list */
+/* Bookmark children container */
 .bookmark-children {
     margin-left: 16px;
     background: transparent;
@@ -306,8 +325,15 @@ body {
     overflow: hidden;
 }
 
+/* Individual bookmark child */
 .bookmark-child {
     padding: 8px 12px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.bookmark-child:hover {
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .empty-state,
@@ -342,22 +368,30 @@ body {
     z-index: 1;
 }
 
+/* ===== SCROLLBAR STYLING ===== */
+
 ::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: rgba(255, 255, 255, 0.05);
     border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 3px;
+    transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
 }
 
 /* Side panel specific optimizations */
@@ -385,50 +419,87 @@ body {
     }
 }
 
-/* Improved focus styles for keyboard navigation */
+/* ===== FOCUS AND KEYBOARD NAVIGATION ===== */
+
 .tab-item:focus,
 .bookmark-item:focus,
-.btn:focus {
+.btn:focus,
+.pinned-tab-icon:focus {
     outline: none;
-    background-color: #f2f2f2;
+    background-color: rgba(66, 133, 244, 0.1);
+    box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.3);
+    border-radius: 4px;
 }
 
-/* Darken title on focus for contrast */
 .tab-item:focus .tab-title,
 .bookmark-item:focus .bookmark-title {
-    color: #333;
+    color: #4285f4;
     font-weight: 600;
 }
 
-/* Better hover states for touch devices */
+/* Touch device optimizations */
 @media (hover: none) {
     .tab-actions {
         opacity: 1;
     }
+
+    .tab-item,
+    .bookmark-item {
+        padding: 8px;
+    }
 }
 
-/* Pinned tabs strip */
+/* ===== PINNED TABS STRIP ===== */
+
 .pinned-tabs {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border-bottom: 1px solid #444;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     background: rgb(32, 33, 36);
     overflow-x: auto;
     flex-shrink: 0;
+    min-height: 36px;
+}
+
+.pinned-tabs::-webkit-scrollbar {
+    height: 3px;
+}
+
+.pinned-tabs::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.pinned-tabs::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+
+.pinned-tabs::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 .pinned-tab-icon {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     border-radius: 3px;
-    margin-right: 4px;
     cursor: pointer;
     object-fit: cover;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    opacity: 0.9;
 }
 
-/* Drag and Drop Styles */
+.pinned-tab-icon:hover {
+    transform: scale(1.05);
+    opacity: 1;
+    box-shadow: 0 2px 6px rgba(255, 255, 255, 0.1);
+}
+
+/* ===== DRAG AND DROP STYLES ===== */
+
+/* Drag cursors */
 .tab-item[draggable="true"],
 .bookmark-item[draggable="true"],
 .pinned-tab-icon[draggable="true"] {
@@ -441,18 +512,25 @@ body {
     cursor: grabbing;
 }
 
+/* Dragging element styling */
 .dragging {
-    opacity: 0.6;
-    transform: scale(1.02);
-    transition: all 0.1s ease;
-    z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    opacity: 0.8 !important;
+    transform: scale(1.02) !important;
+    transition: all 0.15s ease !important;
+    z-index: 1000 !important;
+    box-shadow: 0 6px 20px rgba(26, 115, 232, 0.3) !important;
+    background-color: rgba(26, 115, 232, 0.05) !important;
+    border: 1px solid rgba(26, 115, 232, 0.4) !important;
+    border-radius: 4px !important;
 }
 
-.drag-over {
+/* Drop indicator positioning */
+.drag-over,
+.drag-over-bottom {
     position: relative;
 }
 
+/* Top drop indicator */
 .drag-over::before {
     content: '';
     position: absolute;
@@ -460,16 +538,14 @@ body {
     left: 0;
     right: 0;
     height: 3px;
-    background-color: #1a73e8;
+    background: linear-gradient(90deg, #1a73e8, #4285f4);
     border-radius: 2px;
-    box-shadow: 0 0 6px rgba(26, 115, 232, 0.6);
+    box-shadow: 0 0 8px rgba(26, 115, 232, 0.6);
     z-index: 1001;
+    animation: dropPulse 1s ease-in-out infinite;
 }
 
-.drag-over-bottom {
-    position: relative;
-}
-
+/* Bottom drop indicator */
 .drag-over-bottom::after {
     content: '';
     position: absolute;
@@ -477,27 +553,29 @@ body {
     left: 0;
     right: 0;
     height: 3px;
-    background-color: #1a73e8;
+    background: linear-gradient(90deg, #1a73e8, #4285f4);
     border-radius: 2px;
-    box-shadow: 0 0 6px rgba(26, 115, 232, 0.6);
+    box-shadow: 0 0 8px rgba(26, 115, 232, 0.6);
     z-index: 1001;
+    animation: dropPulse 1s ease-in-out infinite;
 }
 
-.drop-indicator {
-    height: 2px;
-    background-color: #1a73e8;
-    margin: 2px 0;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    border-radius: 1px;
+/* Drop indicator animation */
+@keyframes dropPulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+
+    50% {
+        opacity: 0.7;
+        transform: scaleY(1.2);
+    }
 }
 
-.drop-indicator.active {
-    opacity: 1;
-    box-shadow: 0 0 4px #1a73e8;
-}
-
-/* Prevent text selection during drag */
+/* Prevent text selection and interaction during drag */
 .tab-item.dragging *,
 .bookmark-item.dragging *,
 .pinned-tab-icon.dragging * {
@@ -505,7 +583,7 @@ body {
     pointer-events: none;
 }
 
-/* Prevent highlighting the pinned strip and icons */
+/* User selection prevention */
 .pinned-tabs,
 .pinned-tab-icon {
     user-select: none;

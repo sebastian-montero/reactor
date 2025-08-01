@@ -78,6 +78,8 @@ class SidePanelTabManager {
         this.draggedData = null;
         this.dropIndicators = [];
         this.dragStartPos = null;
+        this.lastRenderData = null;
+        this.eventsAttached = false;
         this.init();
     }
 
@@ -136,21 +138,33 @@ class SidePanelTabManager {
         // Debounced refresh on tab and bookmark events for performance
         chrome.tabs.onCreated.addListener(() => this.debounceRefresh());
         chrome.tabs.onRemoved.addListener(() => this.debounceRefresh());
-        chrome.tabs.onUpdated.addListener(() => this.debounceRefresh());
+        chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+            // Only refresh if tab properties that affect our UI changed
+            if (changeInfo.title || changeInfo.favIconUrl || changeInfo.pinned) {
+                this.debounceRefresh();
+            }
+        });
         chrome.tabs.onActivated.addListener(() => this.debounceRefresh());
         chrome.bookmarks.onCreated.addListener(() => this.debounceRefresh());
         chrome.bookmarks.onRemoved.addListener(() => this.debounceRefresh());
         chrome.bookmarks.onChanged.addListener(() => this.debounceRefresh());
+        chrome.bookmarks.onMoved.addListener(() => this.debounceRefresh());
     }
     // Debounced refresh to batch frequent events
     debounceRefresh() {
         clearTimeout(this.refreshTimeout);
-        this.refreshTimeout = setTimeout(() => this.refresh(), 50);
+        this.refreshTimeout = setTimeout(() => this.refresh(), 100); // Reduced delay for better responsiveness
     }
 
     async refresh() {
         await this.loadData();
         this.render();
+    }
+
+    // Fast refresh without full reload - for drag operations
+    fastRefresh() {
+        clearTimeout(this.refreshTimeout);
+        this.refreshTimeout = setTimeout(() => this.render(), 50); // Faster than debounced refresh
     }
 
     openSettings() {
@@ -163,17 +177,26 @@ class SidePanelTabManager {
 
     renderUnifiedList() {
         const container = this.container;
-
-        // Show content immediately, even if empty
-        // Clear existing content
         const pinnedContainer = document.getElementById('pinnedTabs');
+
+        // Always rebuild UI to ensure freshness, but keep performance optimizations
         pinnedContainer.textContent = '';
         container.textContent = '';
-        const fragment = document.createDocumentFragment();
+        this.buildFullUI(container, pinnedContainer);
+        this.cacheRenderData();
 
-        // Add pinned tabs first
-        // Render pinned tabs as icons in the pinned-tabs strip
+        // Reattach events after rebuilding DOM
+        this.eventsAttached = false;
+        this.attachEvents(container);
+        this.attachDragEvents(container);
+        this.eventsAttached = true;
+    }
+
+    buildFullUI(container, pinnedContainer) {
+        const fragment = document.createDocumentFragment();
         const defaultFavicon = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="%23e8eaed"/></svg>';
+
+        // Add pinned tabs
         this.pinnedTabs.forEach(tab => {
             const img = document.createElement('img');
             img.className = 'pinned-tab-icon';
@@ -188,22 +211,18 @@ class SidePanelTabManager {
 
         // Add open tabs
         const tabsByWindow = this.groupTabsByWindow(this.openTabs);
-        // Add open tabs grouped by window
         Object.values(tabsByWindow).forEach(tabs => {
             tabs.forEach(tab => {
                 fragment.appendChild(this.createTabElementNode(tab, false));
             });
         });
 
-        // Add bookmarks at the bottom
-        // Append bookmarks as DOM nodes
+        // Add bookmarks
         this.bookmarks.forEach(bookmark => {
             const node = this.createBookmarkElementNode(bookmark, 0);
             if (node) fragment.appendChild(node);
         });
 
-        // Always render something to avoid prolonged loading state
-        // If no items, show empty state
         if (fragment.childNodes.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'empty-state';
@@ -212,8 +231,36 @@ class SidePanelTabManager {
         } else {
             container.appendChild(fragment);
         }
-        this.attachEvents(container);
-        this.attachDragEvents(container);
+    }
+
+    updateExistingUI(container, pinnedContainer) {
+        // Fast update for small changes - just update active states
+        const currentActive = container.querySelector('.tab-item.active-tab');
+        const activeTab = this.openTabs.find(tab => tab.active);
+
+        if (activeTab && currentActive && currentActive.dataset.tabId !== activeTab.id.toString()) {
+            currentActive.classList.remove('active-tab');
+            const newActive = container.querySelector(`[data-tab-id="${activeTab.id}"]`);
+            if (newActive) newActive.classList.add('active-tab');
+        }
+    }
+
+    hasSignificantChanges() {
+        if (!this.lastRenderData) return true;
+
+        return (
+            this.lastRenderData.pinnedCount !== this.pinnedTabs.length ||
+            this.lastRenderData.openCount !== this.openTabs.length ||
+            this.lastRenderData.bookmarkCount !== this.bookmarks.length
+        );
+    }
+
+    cacheRenderData() {
+        this.lastRenderData = {
+            pinnedCount: this.pinnedTabs.length,
+            openCount: this.openTabs.length,
+            bookmarkCount: this.bookmarks.length
+        };
     }
 
     groupTabsByWindow(tabs) {
@@ -497,8 +544,16 @@ class SidePanelTabManager {
                 return;
             }
 
+            console.log('Drag started on:', dragElement.className, dragElement);
+
             this.draggedElement = dragElement;
-            dragElement.classList.add('dragging');
+
+            // Apply dragging class with a slight delay to ensure it's visible
+            setTimeout(() => {
+                if (this.draggedElement) {
+                    dragElement.classList.add('dragging');
+                }
+            }, 10);
 
             if (dragElement.classList.contains('pinned-tab-icon')) {
                 this.draggedData = {
@@ -535,6 +590,10 @@ class SidePanelTabManager {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
 
+            // Cache the last target to avoid redundant operations
+            if (this.lastDragTarget === e.target) return;
+            this.lastDragTarget = e.target;
+
             // Find the target element for drop
             let target = e.target.closest('.tab-item, .bookmark-child, .bookmark-folder, .pinned-tab-icon');
 
@@ -547,17 +606,20 @@ class SidePanelTabManager {
                 this.clearDropIndicators();
 
                 // Only show drop indicator for compatible types
-                const isCompatible = this.isDropCompatible(this.draggedData.type, target);
-                if (isCompatible) {
+                if (this.isDropCompatible(this.draggedData.type, target)) {
                     // Determine if we should show divider above or below based on mouse position
                     const rect = target.getBoundingClientRect();
                     const midpoint = rect.top + rect.height / 2;
 
                     if (e.clientY < midpoint) {
                         target.classList.add('drag-over');
+                        console.log('Adding drag-over to:', target.className);
                     } else {
                         target.classList.add('drag-over-bottom');
+                        console.log('Adding drag-over-bottom to:', target.className);
                     }
+
+                    this.lastDropTarget = target;
                 }
             }
         };
@@ -599,10 +661,12 @@ class SidePanelTabManager {
 
         // Drag end event
         const handleDragEnd = (e) => {
+            console.log('Drag ended on:', e.target.className);
             e.target.classList.remove('dragging');
             this.clearDropIndicators();
             this.draggedElement = null;
             this.draggedData = null;
+            this.lastDragTarget = null;
         };
 
         // Attach events to containers
@@ -616,9 +680,19 @@ class SidePanelTabManager {
     }
 
     clearDropIndicators() {
-        document.querySelectorAll('.drag-over, .drag-over-bottom').forEach(el => {
-            el.classList.remove('drag-over', 'drag-over-bottom');
-        });
+        // Use cached elements if available to avoid DOM queries
+        if (this.lastDropTarget) {
+            this.lastDropTarget.classList.remove('drag-over', 'drag-over-bottom');
+            this.lastDropTarget = null;
+        }
+
+        // Fallback for any missed elements
+        const elements = document.querySelectorAll('.drag-over, .drag-over-bottom');
+        if (elements.length > 0) {
+            elements.forEach(el => {
+                el.classList.remove('drag-over', 'drag-over-bottom');
+            });
+        }
     }
 
     isDropCompatible(draggedType, targetElement) {
@@ -657,18 +731,18 @@ class SidePanelTabManager {
             if (draggedTab && targetTab) {
                 let targetIndex = targetTab.index;
 
-                // If dropping below, increment the target index
                 if (dropBelow) {
                     targetIndex += 1;
                 }
 
-                // Adjust for the fact that the dragged tab will be removed first
                 if (draggedTab.index < targetIndex) {
                     targetIndex -= 1;
                 }
 
                 await chrome.tabs.move(draggedTabId, { index: targetIndex });
-                await this.refresh();
+
+                // Fast UI update instead of full refresh
+                this.updateTabOrder();
             }
         } catch (error) {
             console.error('Error reordering pinned tabs:', error);
@@ -683,22 +757,34 @@ class SidePanelTabManager {
             if (draggedTab && targetTab) {
                 let targetIndex = targetTab.index;
 
-                // If dropping below, increment the target index
                 if (dropBelow) {
                     targetIndex += 1;
                 }
 
-                // Adjust for the fact that the dragged tab will be removed first
                 if (draggedTab.index < targetIndex) {
                     targetIndex -= 1;
                 }
 
                 await chrome.tabs.move(draggedTabId, { index: targetIndex });
-                await this.refresh();
+
+                // Fast UI update instead of full refresh
+                this.updateTabOrder();
             }
         } catch (error) {
             console.error('Error reordering tabs:', error);
         }
+    }
+
+    // Fast tab order update without full reload
+    updateTabOrder() {
+        clearTimeout(this.refreshTimeout);
+        this.refreshTimeout = setTimeout(async () => {
+            // Quick reload of tab data only
+            const tabs = await chrome.tabs.query({});
+            this.pinnedTabs = tabs.filter(tab => tab.pinned);
+            this.openTabs = tabs.filter(tab => !tab.pinned);
+            this.fastRefresh();
+        }, 50);
     }
 
     async reorderBookmarks(draggedBookmarkId, targetBookmarkId, dropBelow = false) {
@@ -710,27 +796,21 @@ class SidePanelTabManager {
                 const draggedItem = draggedBookmark[0];
                 const targetItem = targetBookmark[0];
 
-                // Don't allow moving a folder into itself
                 if (draggedItem.children && this.isDescendant(targetBookmarkId, draggedBookmarkId)) {
                     console.warn('Cannot move folder into itself');
                     return;
                 }
 
-                // If target is a folder and dropping on top (not below), move into it
-                // Otherwise, move adjacent to it
                 let newParentId, newIndex;
 
                 if (targetItem.children && targetItem.children.length >= 0 && !dropBelow) {
-                    // Target is a folder and dropping on top, move into it
                     newParentId = targetBookmarkId;
-                    newIndex = 0; // Add at the beginning of the folder
+                    newIndex = 0;
                 } else {
-                    // Target is a bookmark or dropping below a folder, move adjacent to it
                     newParentId = targetItem.parentId;
                     const siblings = await chrome.bookmarks.getChildren(targetItem.parentId);
                     let targetIndex = siblings.findIndex(sibling => sibling.id === targetBookmarkId);
 
-                    // If dropping below, increment the target index
                     if (dropBelow) {
                         targetIndex += 1;
                     }
@@ -738,19 +818,30 @@ class SidePanelTabManager {
                     newIndex = targetIndex;
                 }
 
-                // Only move if it's actually changing position
                 if (newParentId !== draggedItem.parentId || newIndex !== draggedItem.index) {
                     await chrome.bookmarks.move(draggedBookmarkId, {
                         parentId: newParentId,
                         index: newIndex
                     });
 
-                    await this.refresh();
+                    // Fast bookmark update instead of full refresh
+                    this.updateBookmarkOrder();
                 }
             }
         } catch (error) {
             console.error('Error reordering bookmarks:', error);
         }
+    }
+
+    // Fast bookmark order update without full reload
+    updateBookmarkOrder() {
+        clearTimeout(this.refreshTimeout);
+        this.refreshTimeout = setTimeout(async () => {
+            // Quick reload of bookmark data only
+            const bookmarks = await chrome.bookmarks.getTree();
+            this.bookmarks = bookmarks[0].children || [];
+            this.fastRefresh();
+        }, 50);
     }
 
     async isDescendant(potentialDescendantId, ancestorId) {
@@ -770,7 +861,14 @@ class SidePanelTabManager {
 
     async switchToTab(tabId) {
         try {
-            // Fast tab switching - no refresh needed
+            // Fast tab switching - update UI immediately
+            const currentActive = this.container.querySelector('.tab-item.active-tab');
+            if (currentActive) currentActive.classList.remove('active-tab');
+
+            const newActive = this.container.querySelector(`[data-tab-id="${tabId}"]`);
+            if (newActive) newActive.classList.add('active-tab');
+
+            // Then do the actual tab switch
             await chrome.tabs.update(tabId, { active: true });
             const tab = await chrome.tabs.get(tabId);
             await chrome.windows.update(tab.windowId, { focused: true });
@@ -782,8 +880,8 @@ class SidePanelTabManager {
     async pinTab(tabId) {
         try {
             await chrome.tabs.update(tabId, { pinned: true });
-            // Only refresh after pin/unpin operations
-            await this.refresh();
+            // Fast update instead of full refresh
+            this.updateTabOrder();
         } catch (error) {
             console.error('Error pinning tab:', error);
         }
@@ -792,8 +890,8 @@ class SidePanelTabManager {
     async unpinTab(tabId) {
         try {
             await chrome.tabs.update(tabId, { pinned: false });
-            // Only refresh after pin/unpin operations
-            await this.refresh();
+            // Fast update instead of full refresh
+            this.updateTabOrder();
         } catch (error) {
             console.error('Error unpinning tab:', error);
         }
