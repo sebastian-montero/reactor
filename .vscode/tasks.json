@@ -1,0 +1,18 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Launch Extension",
+			"type": "shell",
+			"command": "open",
+			"args": [
+				"-a",
+				"Google Chrome",
+				"--args",
+				"--load-extension=."
+			],
+			"group": "build",
+			"isBackground": false
+		}
+	]
+}

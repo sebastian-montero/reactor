@@ -3,33 +3,42 @@ class SidePanelTabManager {
     createBookmarkElementNode(bookmark, level = 0) {
         if (bookmark.children && bookmark.children.length > 0) {
             const folder = document.createElement('div');
-            // Preserve folder open/closed state across renders (default to expanded)
-            const isCollapsed = this.folderStates.get(bookmark.id) === true;
+            // Default to collapsed (closed) unless explicitly set to false (open)
+            // If no state is saved, default to true (closed)
+            const isCollapsed = this.folderStates.has(bookmark.id) ?
+                this.folderStates.get(bookmark.id) : true;
             folder.className = 'bookmark-folder' + (isCollapsed ? ' collapsed' : '');
             folder.dataset.bookmarkId = bookmark.id;
+            folder.draggable = true;
+
             const header = document.createElement('div');
             header.className = 'bookmark-item bookmark-folder-header';
             header.tabIndex = 0;
+
             const toggle = document.createElement('span');
             toggle.className = 'bookmark-folder-toggle';
-            // Set toggle icon based on collapsed state
             toggle.textContent = isCollapsed ? '▶' : '▼';
+
             const icon = document.createElement('div');
             icon.className = 'bookmark-icon';
             icon.textContent = '📁';
+
             const info = document.createElement('div');
             info.className = 'bookmark-info';
             const title = document.createElement('div');
             title.className = 'bookmark-title';
             title.innerHTML = this.escapeHtml(bookmark.title);
             info.appendChild(title);
+
             header.append(toggle, icon, info);
+
             const childrenContainer = document.createElement('div');
             childrenContainer.className = 'bookmark-children';
             bookmark.children.forEach(child => {
                 const childNode = this.createBookmarkElementNode(child, level + 1);
                 if (childNode) childrenContainer.appendChild(childNode);
             });
+
             folder.append(header, childrenContainer);
             return folder;
         } else if (bookmark.url) {
@@ -38,15 +47,19 @@ class SidePanelTabManager {
             item.dataset.bookmarkId = bookmark.id;
             item.dataset.url = bookmark.url;
             item.tabIndex = 0;
+            item.draggable = true;
+
             const icon = document.createElement('div');
             icon.className = 'bookmark-icon';
             icon.textContent = '🔖';
+
             const info = document.createElement('div');
             info.className = 'bookmark-info';
             const title = document.createElement('div');
             title.className = 'bookmark-title';
             title.innerHTML = this.escapeHtml(bookmark.title);
             info.appendChild(title);
+
             item.append(icon, info);
             return item;
         }
@@ -57,18 +70,43 @@ class SidePanelTabManager {
         this.openTabs = [];
         this.bookmarks = [];
         this.bookmarksExpanded = true;
-        this.folderStates = new Map(); // Track open/closed state of bookmark folders
-        this.refreshTimeout = null; // Debounce timer for refresh
-        this.container = null;      // Cached container element
-        this.intervalId = null;      // Periodic refresh fallback
+        this.folderStates = new Map();
+        this.refreshTimeout = null;
+        this.container = null;
+        this.intervalId = null;
+        this.draggedElement = null;
+        this.draggedData = null;
+        this.dropIndicators = [];
+        this.dragStartPos = null;
         this.init();
     }
 
     async init() {
         this.setupEventListeners();
         this.container = document.getElementById('unifiedList');
+        await this.loadFolderStates();
         await this.loadData();
         this.render();
+    }
+
+    async loadFolderStates() {
+        try {
+            const result = await chrome.storage.local.get(['bookmarkFolderStates']);
+            if (result.bookmarkFolderStates) {
+                this.folderStates = new Map(Object.entries(result.bookmarkFolderStates));
+            }
+        } catch (error) {
+            console.error('Error loading folder states:', error);
+        }
+    }
+
+    async saveFolderStates() {
+        try {
+            const folderStatesObj = Object.fromEntries(this.folderStates);
+            await chrome.storage.local.set({ bookmarkFolderStates: folderStatesObj });
+        } catch (error) {
+            console.error('Error saving folder states:', error);
+        }
     }
 
     async loadData() {
@@ -144,6 +182,7 @@ class SidePanelTabManager {
             img.title = tab.title || 'Untitled';
             img.dataset.tabId = tab.id;
             img.tabIndex = 0;
+            img.draggable = true;
             pinnedContainer.appendChild(img);
         });
 
@@ -174,6 +213,7 @@ class SidePanelTabManager {
             container.appendChild(fragment);
         }
         this.attachEvents(container);
+        this.attachDragEvents(container);
     }
 
     groupTabsByWindow(tabs) {
@@ -213,17 +253,21 @@ class SidePanelTabManager {
         item.className = 'tab-item' + (tab.active ? ' active-tab' : '');
         item.dataset.tabId = tab.id;
         item.tabIndex = 0;
+        item.draggable = true;
+
         const favicon = document.createElement('img');
         favicon.className = 'tab-favicon';
         favicon.src = tab.favIconUrl || '';
         favicon.alt = '';
         favicon.onerror = () => favicon.style.display = 'none';
+
         const info = document.createElement('div');
         info.className = 'tab-info';
         const text = document.createElement('div');
         text.className = 'tab-title';
         text.innerHTML = this.escapeHtml(title);
         info.appendChild(text);
+
         const actions = document.createElement('div');
         actions.className = 'tab-actions';
         if (!isPinned) {
@@ -238,6 +282,7 @@ class SidePanelTabManager {
         closeBtn.title = 'Close tab';
         closeBtn.textContent = '✕';
         actions.appendChild(closeBtn);
+
         if (isPinned) {
             const pinned = document.createElement('span');
             pinned.className = 'pinned-indicator';
@@ -246,6 +291,7 @@ class SidePanelTabManager {
             pinned.textContent = '📌';
             item.appendChild(pinned);
         }
+
         item.appendChild(favicon);
         item.appendChild(info);
         item.appendChild(actions);
@@ -255,7 +301,10 @@ class SidePanelTabManager {
     createBookmarkElement(bookmark, level = 0) {
         if (bookmark.children && bookmark.children.length > 0) {
             const children = bookmark.children.map(child => this.createBookmarkElement(child, level + 1)).join('');
-            const isCollapsed = this.folderStates.get(bookmark.id) !== false; // Default to collapsed unless explicitly opened
+            // Default to collapsed (closed) unless explicitly set to false (open)
+            // If no state is saved, default to true (closed)
+            const isCollapsed = this.folderStates.has(bookmark.id) ?
+                this.folderStates.get(bookmark.id) : true;
             const collapseClass = isCollapsed ? 'collapsed' : '';
             const toggleIcon = isCollapsed ? '▶' : '▼';
 
@@ -290,6 +339,9 @@ class SidePanelTabManager {
         // Handle clicks on pinned tab icons
         const pinnedContainer = document.getElementById('pinnedTabs');
         pinnedContainer.onclick = async (e) => {
+            // Don't handle clicks during drag operations
+            if (this.draggedElement) return;
+
             if (e.target.classList.contains('pinned-tab-icon')) {
                 const tabId = parseInt(e.target.dataset.tabId);
                 await this.switchToTab(tabId);
@@ -297,11 +349,12 @@ class SidePanelTabManager {
         };
         // Use direct handler assignment to avoid accumulating multiple listeners
         container.onclick = async (e) => {
-            // Handle tab events
+            // Don't handle clicks during drag operations
+            if (this.draggedElement) return;
+
             const tabItem = e.target.closest('.tab-item');
             if (tabItem) {
                 const tabId = parseInt(tabItem.dataset.tabId);
-                // Action buttons first
                 if (e.target.classList.contains('pinned-indicator')) {
                     await this.unpinTab(tabId);
                 } else if (e.target.classList.contains('pin-tab')) {
@@ -309,8 +362,6 @@ class SidePanelTabManager {
                 } else if (e.target.classList.contains('close-tab')) {
                     await this.closeTab(tabId);
                 } else {
-                    // Any other click on the tab item switches to it
-                    // Highlight immediately
                     const prevActive = container.querySelector('.tab-item.active-tab');
                     if (prevActive) prevActive.classList.remove('active-tab');
                     tabItem.classList.add('active-tab');
@@ -319,7 +370,6 @@ class SidePanelTabManager {
                 return;
             }
 
-            // Handle bookmark folder toggle
             const folderHeader = e.target.closest('.bookmark-folder-header');
             if (folderHeader) {
                 const folder = folderHeader.closest('.bookmark-folder');
@@ -331,18 +381,17 @@ class SidePanelTabManager {
                     folder.classList.toggle('collapsed');
                     toggle.textContent = folder.classList.contains('collapsed') ? '▶' : '▼';
 
-                    // Store the folder state
-                    this.folderStates.set(bookmarkId, folder.classList.contains('collapsed') ? true : false);
+                    // Store the folder state (false = open, true = closed)
+                    this.folderStates.set(bookmarkId, folder.classList.contains('collapsed'));
+                    this.saveFolderStates();
                 }
                 return;
             }
 
-            // Handle bookmark click on leaf items only
             const bookmarkChild = e.target.closest('.bookmark-child');
             if (bookmarkChild) {
                 const url = bookmarkChild.dataset.url;
                 if (url) {
-                    // Highlight like a tab
                     const prev = container.querySelector('.tab-item.active-tab, .bookmark-item.active-tab');
                     if (prev) prev.classList.remove('active-tab');
                     bookmarkChild.classList.add('active-tab');
@@ -388,8 +437,9 @@ class SidePanelTabManager {
                         folder.classList.toggle('collapsed');
                         toggle.textContent = folder.classList.contains('collapsed') ? '▶' : '▼';
 
-                        // Store the folder state
-                        this.folderStates.set(bookmarkId, folder.classList.contains('collapsed') ? true : false);
+                        // Store the folder state (false = open, true = closed)
+                        this.folderStates.set(bookmarkId, folder.classList.contains('collapsed'));
+                        this.saveFolderStates();
                     }
                     return;
                 }
@@ -405,6 +455,271 @@ class SidePanelTabManager {
                 }
             }
         };
+    }
+
+    attachDragEvents(container) {
+        const pinnedContainer = document.getElementById('pinnedTabs');
+
+        // Drag start event
+        const handleDragStart = (e) => {
+            // Prevent dragging on action buttons
+            if (e.target.classList.contains('action-btn') ||
+                e.target.classList.contains('close-tab') ||
+                e.target.classList.contains('pin-tab') ||
+                e.target.classList.contains('bookmark-folder-toggle')) {
+                e.preventDefault();
+                return;
+            }
+
+            this.draggedElement = e.target;
+            e.target.classList.add('dragging');
+
+            if (e.target.classList.contains('pinned-tab-icon')) {
+                this.draggedData = {
+                    type: 'pinnedTab',
+                    tabId: parseInt(e.target.dataset.tabId),
+                    element: e.target
+                };
+            } else if (e.target.classList.contains('tab-item')) {
+                this.draggedData = {
+                    type: 'tab',
+                    tabId: parseInt(e.target.dataset.tabId),
+                    element: e.target
+                };
+            } else if (e.target.classList.contains('bookmark-folder')) {
+                this.draggedData = {
+                    type: 'bookmarkFolder',
+                    bookmarkId: e.target.dataset.bookmarkId,
+                    element: e.target
+                };
+            } else if (e.target.classList.contains('bookmark-child')) {
+                this.draggedData = {
+                    type: 'bookmark',
+                    bookmarkId: e.target.dataset.bookmarkId,
+                    element: e.target
+                };
+            }
+
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', e.target.outerHTML);
+        };
+
+        // Drag over event
+        const handleDragOver = (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+
+            const target = e.target.closest('.tab-item, .bookmark-item, .bookmark-folder, .pinned-tab-icon');
+            if (target && target !== this.draggedElement && this.draggedData) {
+                this.clearDropIndicators();
+
+                // Only show drop indicator for compatible types
+                const isCompatible = this.isDropCompatible(this.draggedData.type, target);
+                if (isCompatible) {
+                    // Determine if we should show divider above or below based on mouse position
+                    const rect = target.getBoundingClientRect();
+                    const midpoint = rect.top + rect.height / 2;
+
+                    if (e.clientY < midpoint) {
+                        target.classList.add('drag-over');
+                    } else {
+                        target.classList.add('drag-over-bottom');
+                    }
+                }
+            }
+        };
+
+        // Drag leave event
+        const handleDragLeave = (e) => {
+            const target = e.target.closest('.tab-item, .bookmark-item, .bookmark-folder, .pinned-tab-icon');
+            if (target) {
+                target.classList.remove('drag-over', 'drag-over-bottom');
+            }
+        };
+
+        // Drop event
+        const handleDrop = async (e) => {
+            e.preventDefault();
+            this.clearDropIndicators();
+
+            const target = e.target.closest('.tab-item, .bookmark-item, .bookmark-folder, .pinned-tab-icon');
+            if (target && target !== this.draggedElement && this.draggedData) {
+                const isCompatible = this.isDropCompatible(this.draggedData.type, target);
+                if (isCompatible) {
+                    await this.handleDrop(target, this.draggedData);
+                }
+            }
+        };
+
+        // Drag end event
+        const handleDragEnd = (e) => {
+            e.target.classList.remove('dragging');
+            this.clearDropIndicators();
+            this.draggedElement = null;
+            this.draggedData = null;
+        };
+
+        // Attach events to containers
+        [container, pinnedContainer].forEach(containerEl => {
+            containerEl.addEventListener('dragstart', handleDragStart);
+            containerEl.addEventListener('dragover', handleDragOver);
+            containerEl.addEventListener('dragleave', handleDragLeave);
+            containerEl.addEventListener('drop', handleDrop);
+            containerEl.addEventListener('dragend', handleDragEnd);
+        });
+    }
+
+    clearDropIndicators() {
+        document.querySelectorAll('.drag-over, .drag-over-bottom').forEach(el => {
+            el.classList.remove('drag-over', 'drag-over-bottom');
+        });
+    }
+
+    isDropCompatible(draggedType, targetElement) {
+        if (draggedType === 'pinnedTab' && targetElement.classList.contains('pinned-tab-icon')) {
+            return true;
+        }
+        if (draggedType === 'tab' && targetElement.classList.contains('tab-item')) {
+            return true;
+        }
+        if ((draggedType === 'bookmark' || draggedType === 'bookmarkFolder') &&
+            (targetElement.classList.contains('bookmark-item') || targetElement.classList.contains('bookmark-folder'))) {
+            return true;
+        }
+        return false;
+    }
+
+    async handleDrop(targetElement, draggedData) {
+        // Determine drop position based on which class is set
+        const dropBelow = targetElement.classList.contains('drag-over-bottom');
+
+        if (draggedData.type === 'pinnedTab' && targetElement.classList.contains('pinned-tab-icon')) {
+            await this.reorderPinnedTabs(draggedData.tabId, parseInt(targetElement.dataset.tabId), dropBelow);
+        } else if (draggedData.type === 'tab' && targetElement.classList.contains('tab-item')) {
+            await this.reorderTabs(draggedData.tabId, parseInt(targetElement.dataset.tabId), dropBelow);
+        } else if ((draggedData.type === 'bookmark' || draggedData.type === 'bookmarkFolder') &&
+            (targetElement.classList.contains('bookmark-item') || targetElement.classList.contains('bookmark-folder'))) {
+            await this.reorderBookmarks(draggedData.bookmarkId, targetElement.dataset.bookmarkId, dropBelow);
+        }
+    }
+
+    async reorderPinnedTabs(draggedTabId, targetTabId, dropBelow = false) {
+        try {
+            const draggedTab = this.pinnedTabs.find(tab => tab.id === draggedTabId);
+            const targetTab = this.pinnedTabs.find(tab => tab.id === targetTabId);
+
+            if (draggedTab && targetTab) {
+                let targetIndex = targetTab.index;
+
+                // If dropping below, increment the target index
+                if (dropBelow) {
+                    targetIndex += 1;
+                }
+
+                // Adjust for the fact that the dragged tab will be removed first
+                if (draggedTab.index < targetIndex) {
+                    targetIndex -= 1;
+                }
+
+                await chrome.tabs.move(draggedTabId, { index: targetIndex });
+                await this.refresh();
+            }
+        } catch (error) {
+            console.error('Error reordering pinned tabs:', error);
+        }
+    }
+
+    async reorderTabs(draggedTabId, targetTabId, dropBelow = false) {
+        try {
+            const draggedTab = this.openTabs.find(tab => tab.id === draggedTabId);
+            const targetTab = this.openTabs.find(tab => tab.id === targetTabId);
+
+            if (draggedTab && targetTab) {
+                let targetIndex = targetTab.index;
+
+                // If dropping below, increment the target index
+                if (dropBelow) {
+                    targetIndex += 1;
+                }
+
+                // Adjust for the fact that the dragged tab will be removed first
+                if (draggedTab.index < targetIndex) {
+                    targetIndex -= 1;
+                }
+
+                await chrome.tabs.move(draggedTabId, { index: targetIndex });
+                await this.refresh();
+            }
+        } catch (error) {
+            console.error('Error reordering tabs:', error);
+        }
+    }
+
+    async reorderBookmarks(draggedBookmarkId, targetBookmarkId, dropBelow = false) {
+        try {
+            const draggedBookmark = await chrome.bookmarks.get(draggedBookmarkId);
+            const targetBookmark = await chrome.bookmarks.get(targetBookmarkId);
+
+            if (draggedBookmark[0] && targetBookmark[0]) {
+                const draggedItem = draggedBookmark[0];
+                const targetItem = targetBookmark[0];
+
+                // Don't allow moving a folder into itself
+                if (draggedItem.children && this.isDescendant(targetBookmarkId, draggedBookmarkId)) {
+                    console.warn('Cannot move folder into itself');
+                    return;
+                }
+
+                // If target is a folder and dropping on top (not below), move into it
+                // Otherwise, move adjacent to it
+                let newParentId, newIndex;
+
+                if (targetItem.children && targetItem.children.length >= 0 && !dropBelow) {
+                    // Target is a folder and dropping on top, move into it
+                    newParentId = targetBookmarkId;
+                    newIndex = 0; // Add at the beginning of the folder
+                } else {
+                    // Target is a bookmark or dropping below a folder, move adjacent to it
+                    newParentId = targetItem.parentId;
+                    const siblings = await chrome.bookmarks.getChildren(targetItem.parentId);
+                    let targetIndex = siblings.findIndex(sibling => sibling.id === targetBookmarkId);
+
+                    // If dropping below, increment the target index
+                    if (dropBelow) {
+                        targetIndex += 1;
+                    }
+
+                    newIndex = targetIndex;
+                }
+
+                // Only move if it's actually changing position
+                if (newParentId !== draggedItem.parentId || newIndex !== draggedItem.index) {
+                    await chrome.bookmarks.move(draggedBookmarkId, {
+                        parentId: newParentId,
+                        index: newIndex
+                    });
+
+                    await this.refresh();
+                }
+            }
+        } catch (error) {
+            console.error('Error reordering bookmarks:', error);
+        }
+    }
+
+    async isDescendant(potentialDescendantId, ancestorId) {
+        try {
+            let current = await chrome.bookmarks.get(potentialDescendantId);
+            while (current[0] && current[0].parentId) {
+                if (current[0].parentId === ancestorId) {
+                    return true;
+                }
+                current = await chrome.bookmarks.get(current[0].parentId);
+            }
+            return false;
+        } catch (error) {
+            return false;
+        }
     }
 
     async switchToTab(tabId) {
