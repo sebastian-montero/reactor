@@ -54,7 +54,7 @@ body {
     height: 100vh;
     display: flex;
     flex-direction: column;
-    padding: 8px;
+    padding: 4px;
 }
 
 .header {
@@ -170,7 +170,7 @@ body {
 .bookmark-item {
     display: flex;
     align-items: center;
-    padding: 6px 8px;
+    padding: 4px 6px;
     position: relative;
     border-bottom: none;
     transition: background-color 0.2s ease;
@@ -314,6 +314,13 @@ body {
     margin: 4px 0;
 }
 
+/* Add subtle divider before first bookmark folder */
+.bookmark-folder:first-of-type {
+    border-top: 1px solid var(--border-color);
+    padding-top: 4px;
+    margin-top: 4px;
+}
+
 .bookmark-folder .bookmark-icon {
     background: transparent;
     color: #4285f4;
@@ -325,7 +332,7 @@ body {
     align-items: center;
     cursor: pointer;
     background: var(--bg-secondary);
-    padding: 6px 12px;
+    padding: 4px 8px;
     border-radius: 4px;
     margin-bottom: 2px;
     transition: background-color 0.2s ease;
@@ -350,7 +357,7 @@ body {
 
 /* Bookmark children container */
 .bookmark-children {
-    margin-left: 16px;
+    margin-left: 12px;
     background: transparent;
     overflow: hidden;
     transition: max-height 0.3s ease;
@@ -363,7 +370,7 @@ body {
 
 /* Individual bookmark child */
 .bookmark-child {
-    padding: 8px 12px;
+    padding: 4px 8px;
     border-radius: 4px;
     transition: background-color 0.2s ease;
 }
@@ -490,13 +497,13 @@ body {
 .pinned-tabs {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 10px;
-    border-bottom: none;
+    gap: 4px;
+    padding: 4px 4px;
+    border-bottom: 1px solid var(--border-color);
     background: transparent;
     overflow-x: auto;
     flex-shrink: 0;
-    min-height: 36px;
+    min-height: 28px;
 }
 
 .pinned-tabs::-webkit-scrollbar {
@@ -517,8 +524,8 @@ body {
 }
 
 .pinned-tab-icon {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border-radius: 3px;
     cursor: pointer;
     object-fit: cover;
