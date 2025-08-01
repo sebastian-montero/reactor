@@ -1,3 +1,39 @@
+/* ===== CSS CUSTOM PROPERTIES FOR THEME SUPPORT ===== */
+
+:root {
+    /* Dark theme (default) */
+    --bg-primary: rgb(32, 33, 36);
+    --bg-secondary: rgba(255, 255, 255, 0.05);
+    --bg-hover: rgba(255, 255, 255, 0.08);
+    --bg-active: rgba(66, 133, 244, 0.1);
+    --text-primary: #e8eaed;
+    --text-secondary: #9aa0a6;
+    --text-accent: #4285f4;
+    --border-color: rgba(255, 255, 255, 0.08);
+    --scrollbar-track: rgba(255, 255, 255, 0.05);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+    --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Light theme */
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg-primary: #f4f4f4;
+        --bg-secondary: rgba(0, 0, 0, 0.08);
+        --bg-hover: rgba(0, 0, 0, 0.1);
+        --bg-active: rgba(66, 133, 244, 0.15);
+        --text-primary: #202124;
+        --text-secondary: #5f6368;
+        --text-accent: #1967d2;
+        --border-color: rgba(0, 0, 0, 0.15);
+        --scrollbar-track: rgba(0, 0, 0, 0.08);
+        --scrollbar-thumb: rgba(0, 0, 0, 0.25);
+        --scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
+        --shadow-color: rgba(0, 0, 0, 0.15);
+    }
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -7,8 +43,8 @@
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 13px;
-    color: #e8eaed;
-    background: rgb(32, 33, 36);
+    color: var(--text-primary);
+    background: var(--bg-primary);
     width: 100%;
     height: 100vh;
     overflow: hidden;
@@ -60,7 +96,7 @@ body {
 
 .unified-list {
     flex: 1;
-    background: rgb(32, 33, 36);
+    background: var(--bg-primary);
     border-radius: 8px;
     overflow-y: auto;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
@@ -148,19 +184,19 @@ body {
 
 .tab-item:hover,
 .bookmark-item:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--bg-hover);
 }
 
 /* Active state */
 .active-tab {
-    background: rgba(66, 133, 244, 0.1) !important;
-    border-left: 3px solid #4285f4 !important;
+    background: var(--bg-active) !important;
+    border-left: 3px solid var(--text-accent) !important;
     border-radius: 0 4px 4px 0 !important;
 }
 
 .active-tab .tab-title,
 .active-tab .bookmark-title {
-    color: #4285f4;
+    color: var(--text-accent);
     font-weight: 600;
 }
 
@@ -201,7 +237,7 @@ body {
 .bookmark-title {
     font-size: 12px;
     font-weight: 500;
-    color: #e8eaed;
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -232,13 +268,13 @@ body {
     border-radius: 3px;
     cursor: pointer;
     font-size: 10px;
-    color: #9aa0a6;
+    color: var(--text-secondary);
     transition: all 0.2s ease;
 }
 
 .action-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #e8eaed;
+    background: var(--bg-hover);
+    color: var(--text-primary);
 }
 
 /* Pin action button */
@@ -288,7 +324,7 @@ body {
     display: flex;
     align-items: center;
     cursor: pointer;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--bg-secondary);
     padding: 6px 12px;
     border-radius: 4px;
     margin-bottom: 2px;
@@ -296,7 +332,7 @@ body {
 }
 
 .bookmark-folder-header:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--bg-hover);
 }
 
 /* Folder toggle arrow */
@@ -304,7 +340,7 @@ body {
     margin-right: 8px;
     font-size: 10px;
     transition: transform 0.2s ease;
-    color: #9aa0a6;
+    color: var(--text-secondary);
     font-weight: bold;
 }
 
@@ -333,7 +369,7 @@ body {
 }
 
 .bookmark-child:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--bg-secondary);
 }
 
 .empty-state,
@@ -376,18 +412,18 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--scrollbar-track);
     border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--scrollbar-thumb);
     border-radius: 3px;
     transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: var(--scrollbar-thumb-hover);
 }
 
 ::-webkit-scrollbar-corner {
@@ -456,8 +492,8 @@ body {
     align-items: center;
     gap: 6px;
     padding: 8px 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgb(32, 33, 36);
+    border-bottom: none;
+    background: transparent;
     overflow-x: auto;
     flex-shrink: 0;
     min-height: 36px;
@@ -472,12 +508,12 @@ body {
 }
 
 .pinned-tabs::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--scrollbar-thumb);
     border-radius: 2px;
 }
 
 .pinned-tabs::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.25);
+    background: var(--scrollbar-thumb-hover);
 }
 
 .pinned-tab-icon {
@@ -494,7 +530,7 @@ body {
 .pinned-tab-icon:hover {
     transform: scale(1.05);
     opacity: 1;
-    box-shadow: 0 2px 6px rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 6px var(--shadow-color);
 }
 
 /* ===== DRAG AND DROP STYLES ===== */
